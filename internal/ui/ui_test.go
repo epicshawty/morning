@@ -24,7 +24,7 @@ func fixture() Data {
 			Rain:    20,
 			WindKPH: 8,
 			Desc:    "Partly cloudy",
-			Emoji:   "⛅",
+			Emoji:   "☁",
 			Sunrise: "07:16",
 			Sunset:  "17:38",
 		},
@@ -238,6 +238,30 @@ func TestIsNumericZone(t *testing.T) {
 		if isNumericZone(s) {
 			t.Errorf("isNumericZone(%q) = true, want false", s)
 		}
+	}
+}
+
+// TestIconIsNotWeldedToTheDescription guards the spacing that made "☂ Drizzle"
+// look like one word in Windows Terminal: the glyph must be padded out.
+func TestIconIsNotWeldedToTheDescription(t *testing.T) {
+	d := fixture()
+	d.Opts.Rich = true
+	d.Opts.Color = true
+
+	var b bytes.Buffer
+	if err := Render(&b, d); err != nil {
+		t.Fatalf("Render: %v", err)
+	}
+	if !strings.Contains(b.String(), "☁  Partly cloudy") {
+		t.Errorf("glyph is not padded away from the description:\n%s", stripANSI(b.String()))
+	}
+
+	// Every glyph in the set is one cell, so all of them get two spaces.
+	if got := iconCell("☂"); got != "☂  " {
+		t.Errorf("iconCell = %q, want two trailing spaces", got)
+	}
+	if got := iconCell(""); got != "" {
+		t.Errorf("iconCell(empty) = %q, want empty", got)
 	}
 }
 

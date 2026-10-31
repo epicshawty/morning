@@ -153,7 +153,7 @@ func Render(w io.Writer, d Data) error {
 		w := d.Weather
 		b.WriteString(header("Weather", width))
 		fmt.Fprintf(&b, "  %s · %s\n",
-			stBody.Bold(true).Foreground(cAccent).Render(w.Emoji+" "+w.Desc),
+			stBody.Bold(true).Foreground(cAccent).Render(iconCell(w.Emoji)+w.Desc),
 			stBody.Render(weather.Value(w.TempC, d.Opts.Units)),
 		)
 		fmt.Fprintf(&b, "  %s\n", stMuted.Render(fmt.Sprintf(
@@ -233,6 +233,22 @@ func factTitle(d Data) string {
 		return "On this day in " + d.FactCity
 	}
 	return "On this day"
+}
+
+// iconCell pads a weather glyph out to a fixed column width.
+//
+// Terminal fonts draw these symbols almost to the edge of their cell, so a
+// single space leaves the glyph looking welded to the word beside it. Reserving
+// three cells guarantees visible separation whatever the font does.
+func iconCell(glyph string) string {
+	if glyph == "" {
+		return ""
+	}
+	pad := 3 - lipgloss.Width(glyph)
+	if pad < 1 {
+		pad = 1
+	}
+	return glyph + strings.Repeat(" ", pad)
 }
 
 // dateLine renders the local date and time of the place being reported on,

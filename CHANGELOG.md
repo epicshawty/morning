@@ -6,6 +6,14 @@ This project follows [Semantic Versioning](https://semver.org) and
 
 ## [Unreleased]
 
+## [1.3.2] - 2026-10-31
+
+### Fixed
+
+- The weather glyph was separated from its description by a single space, which
+  terminal fonts draw as touching (`☂Drizzle`). The glyph is now padded to a
+  three-cell column, so it reads `☂  Drizzle` in any font.
+
 ## [1.3.1] - 2026-10-31
 
 ### Fixed
@@ -99,7 +107,8 @@ This project follows [Semantic Versioning](https://semver.org) and
   illumos and AIX across amd64, arm64, arm, 386, riscv64, ppc64le, s390x,
   mips64le and loong64.
 
-[Unreleased]: https://github.com/epicshawty/morning/compare/v1.3.1...HEAD
+[Unreleased]: https://github.com/epicshawty/morning/compare/v1.3.2...HEAD
+[1.3.2]: https://github.com/epicshawty/morning/releases/tag/v1.3.2
 [1.3.1]: https://github.com/epicshawty/morning/releases/tag/v1.3.1
 [1.3.0]: https://github.com/epicshawty/morning/releases/tag/v1.3.0
 [1.2.0]: https://github.com/epicshawty/morning/releases/tag/v1.2.0
