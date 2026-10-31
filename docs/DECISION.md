@@ -113,7 +113,7 @@ No keys means no secrets in CI and no signup before first run.
 **Go 1.24+ + Lip Gloss (charmbracelet)** — static render, not a full TUI.
 
 - One `go build` per target; CI matrix needs no cross toolchain, no Docker.
-- ~5 MB self-contained binary, ~5 ms startup, no runtime.
+- ~8 MB self-contained binary, ~5 ms startup, no runtime.
 - Lip Gloss = pure ANSI styling; auto-degrades on dumb terminals; ~200 KB of deps.
 - Bubble Tea v2 only if you want arrow-key navigation later (adds an event loop; the
   app is a dashboard, so it's optional).
