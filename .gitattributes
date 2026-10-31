@@ -1,0 +1,11 @@
+# Normalise line endings so CI, Windows and Unix all see the same files.
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.zip binary
+*.gz binary
+
+# These must keep their exact bytes.
+go.sum text eol=lf
+LICENSE text eol=lf

@@ -1,0 +1,18 @@
+# binaries
+/morning
+/morning.exe
+/dist/
+
+# generated demo assets
+tools/demo.ansi
+tools/demo.html
+
+# editors
+.idea/
+.vscode/
+*.swp
+.DS_Store
+
+# go
+coverage.out
+*.test

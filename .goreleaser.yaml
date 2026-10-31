@@ -1,0 +1,193 @@
+version: 2
+
+project_name: morning
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: linux
+    main: .
+    binary: morning
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+    goarch:
+      - 386
+      - amd64
+      - arm
+      - arm64
+      - loong64
+      - mips64le
+      - ppc64le
+      - riscv64
+      - s390x
+    goarm:
+      - "6"
+      - "7"
+    flags:
+      - -trimpath
+    ldflags:
+      - -s
+      - -w
+      - -X main.version={{ .Version }}
+
+  - id: darwin
+    main: .
+    binary: morning
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    flags:
+      - -trimpath
+    ldflags:
+      - -s
+      - -w
+      - -X main.version={{ .Version }}
+
+  - id: windows
+    main: .
+    binary: morning
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - windows
+    goarch:
+      - 386
+      - amd64
+      - arm64
+    flags:
+      - -trimpath
+    ldflags:
+      - -s
+      - -w
+      - -X main.version={{ .Version }}
+
+  - id: bsd
+    main: .
+    binary: morning
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - freebsd
+      - openbsd
+      - netbsd
+    goarch:
+      - 386
+      - amd64
+      - arm
+      - arm64
+    goarm:
+      - "6"
+      - "7"
+    flags:
+      - -trimpath
+    ldflags:
+      - -s
+      - -w
+      - -X main.version={{ .Version }}
+
+  - id: bsd-riscv64
+    main: .
+    binary: morning
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - freebsd
+      - openbsd
+    goarch:
+      - riscv64
+    flags:
+      - -trimpath
+    ldflags:
+      - -s
+      - -w
+      - -X main.version={{ .Version }}
+
+  - id: openbsd-ppc64
+    main: .
+    binary: morning
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - openbsd
+    goarch:
+      - ppc64
+    flags:
+      - -trimpath
+    ldflags:
+      - -s
+      - -w
+      - -X main.version={{ .Version }}
+
+  - id: solaris
+    main: .
+    binary: morning
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - solaris
+      - illumos
+    goarch:
+      - amd64
+    flags:
+      - -trimpath
+    ldflags:
+      - -s
+      - -w
+      - -X main.version={{ .Version }}
+
+  - id: aix
+    main: .
+    binary: morning
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - aix
+    goarch:
+      - ppc64
+    flags:
+      - -trimpath
+    ldflags:
+      - -s
+      - -w
+      - -X main.version={{ .Version }}
+
+archives:
+  - formats:
+      - tar.gz
+    name_template: >-
+      {{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}
+      {{- if .Amd64 }}_v{{ .Amd64 }}{{ end }}
+      {{- if .Arm }}v{{ .Arm }}{{ end }}
+    format_overrides:
+      - goos: windows
+        formats:
+          - zip
+    files:
+      - README.md
+      - LICENSE
+
+checksum:
+  name_template: checksums.txt
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^ci:"
+      - "^chore:"
+
+release:
+  draft: false
+  prerelease: auto
+  footer: |
+    **Full changelog**: https://github.com/epicshawty/morning/compare/{{ .PreviousTag }}...{{ .Tag }}
