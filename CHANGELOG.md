@@ -6,6 +6,21 @@ This project follows [Semantic Versioning](https://semver.org) and
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-10-31
+
+### Added
+
+- **Clickable headlines.** Every headline and on-this-day entry is wrapped in an
+  OSC 8 terminal hyperlink, on all wrapped lines, so it opens in the browser
+  with the terminal's usual click or open-link action. Enabled automatically on
+  a terminal; `-links auto|always|never` controls it.
+- The layout is now chosen by "rich vs plain" rather than by colour, so
+  `-color never` still produces the dashboard with working links.
+
+### Changed
+
+- `-plain` and piped output never carry link or colour escapes.
+
 ## [1.2.0] - 2026-10-31
 
 ### Added
@@ -72,7 +87,8 @@ This project follows [Semantic Versioning](https://semver.org) and
   illumos and AIX across amd64, arm64, arm, 386, riscv64, ppc64le, s390x,
   mips64le and loong64.
 
-[Unreleased]: https://github.com/epicshawty/morning/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/epicshawty/morning/compare/v1.3.0...HEAD
+[1.3.0]: https://github.com/epicshawty/morning/releases/tag/v1.3.0
 [1.2.0]: https://github.com/epicshawty/morning/releases/tag/v1.2.0
 [1.1.0]: https://github.com/epicshawty/morning/releases/tag/v1.1.0
 [1.0.1]: https://github.com/epicshawty/morning/releases/tag/v1.0.1

@@ -39,10 +39,19 @@ The clock, the greeting and the temperature unit all follow the city you ask abo
 | `-json` | off | Machine-readable output |
 | `-plain` | off | Force plain text |
 | `-color <mode>` | `auto` | `auto`, `always`, `never` |
+| `-links <mode>` | `auto` | Clickable headlines via OSC 8; `auto` enables them on a terminal |
 | `-width <n>` | terminal | Wrap width |
 | `-no-cache` | off | Bypass the 10-minute cache |
 | `-config <path>` | see below | Config file |
 | `-version` | — | Print version |
+
+### Clicking
+
+Every headline is a real terminal hyperlink (OSC 8), so `Ctrl`/`Cmd`-click or the
+terminal's own open-link action jumps straight to the article. Long headlines stay
+clickable on all their wrapped lines. It needs no configuration, works without
+colour, and is switched off automatically when output is not a terminal — nothing
+escapes into a pipe, a file, or CI logs. `-links always|never` overrides it.
 
 ### In a pipe
 

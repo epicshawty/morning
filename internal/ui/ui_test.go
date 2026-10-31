@@ -73,6 +73,7 @@ func TestPlainIsPureASCII(t *testing.T) {
 
 func TestStyledHasNoBrokenWrapping(t *testing.T) {
 	d := fixture()
+	d.Opts.Rich = true
 	d.Opts.Color = true
 	d.Opts.Width = 76
 	var b bytes.Buffer
@@ -152,6 +153,56 @@ func TestGlobalFactsStayUnlabelled(t *testing.T) {
 	}
 	if strings.Contains(b.String(), "ON THIS DAY IN") {
 		t.Errorf("global facts should not claim a city:\n%s", b.String())
+	}
+}
+
+// TestHyperlinksCoverEveryLine proves each wrapped line of a headline carries
+// its own OSC 8 link, and that they vanish when links are off.
+func TestHyperlinksCoverEveryLine(t *testing.T) {
+	d := fixture()
+	d.Opts.Rich = true
+	d.Opts.Links = true
+	d.Opts.Width = 50 // force the headline to wrap
+	d.World = []news.Item{{
+		Title:  "A headline long enough that it must wrap across more than one line",
+		Source: "BBC",
+		URL:    "https://example.com/story",
+	}}
+
+	var b bytes.Buffer
+	if err := Render(&b, d); err != nil {
+		t.Fatalf("Render: %v", err)
+	}
+	out := b.String()
+	if n := strings.Count(out, "\x1b]8;;https://example.com/story\x1b\\"); n < 2 {
+		t.Errorf("expected a link on every wrapped line, got %d\n%s", n, out)
+	}
+	if n := strings.Count(out, "\x1b]8;;\x1b\\"); n < 2 {
+		t.Errorf("expected each link to be closed, got %d", n)
+	}
+
+	// With links disabled the same render carries no OSC sequences at all.
+	d.Opts.Links = false
+	b.Reset()
+	if err := Render(&b, d); err != nil {
+		t.Fatalf("Render: %v", err)
+	}
+	if strings.Contains(b.String(), "\x1b]8;;") {
+		t.Error("links were emitted even though they were disabled")
+	}
+}
+
+func TestPlainNeverCarriesLinks(t *testing.T) {
+	d := fixture()
+	d.Opts.Links = true // ignored: plain output is for pipes
+	d.World = []news.Item{{Title: "A headline", Source: "BBC", URL: "https://example.com/x"}}
+
+	var b bytes.Buffer
+	if err := Render(&b, d); err != nil {
+		t.Fatalf("Render: %v", err)
+	}
+	if strings.ContainsRune(b.String(), 0x1b) {
+		t.Error("plain output contains control sequences")
 	}
 }
 

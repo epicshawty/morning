@@ -19,9 +19,6 @@ import (
 	"time"
 	_ "time/tzdata" // embed the zone database so -city works on any OS
 
-	"github.com/charmbracelet/lipgloss"
-	"github.com/muesli/termenv"
-
 	"github.com/epicshawty/morning/internal/cache"
 	"github.com/epicshawty/morning/internal/config"
 	"github.com/epicshawty/morning/internal/facts"
@@ -88,6 +85,7 @@ func run() error {
 		sectionsFlag = flag.String("sections", "", "comma list of: weather,local,world,tech,fact")
 		configFlag   = flag.String("config", "", "config file path")
 		colorFlag    = flag.String("color", "auto", "colour: auto, always, never")
+		linksFlag    = flag.String("links", "auto", "clickable headlines: auto, always, never")
 		jsonFlag     = flag.Bool("json", false, "emit JSON")
 		plainFlag    = flag.Bool("plain", false, "force plain text")
 		limitFlag    = flag.Int("limit", 0, "headlines per section (1-20)")
@@ -143,11 +141,23 @@ func run() error {
 	default:
 		color = tty && os.Getenv("NO_COLOR") == ""
 	}
-	if *plainFlag || *jsonFlag {
-		color = false
+
+	// Hyperlinks are independent of colour: they survive NO_COLOR and pale
+	// terminals, but must never leak into a pipe or a file.
+	links := false
+	switch *linksFlag {
+	case "always":
+		links = true
+	case "never":
+		links = false
+	default:
+		links = tty
 	}
-	if !color {
-		lipgloss.SetColorProfile(termenv.Ascii)
+
+	// The dashboard layout needs a terminal, or an explicit request to force it.
+	rich := !*plainFlag && !*jsonFlag && (tty || *colorFlag == "always" || *linksFlag == "always")
+	if !rich {
+		color, links = false, false
 	}
 
 	width := *widthFlag
@@ -327,7 +337,8 @@ func run() error {
 		FactsErr:   errFacts,
 		FactCity:   factCity,
 		Opts: ui.Options{
-			Color: color, Width: width, Units: units, Limit: limit, Version: version,
+			Rich: rich, Color: color, Links: links,
+			Width: width, Units: units, Limit: limit, Version: version,
 		},
 	})
 }
@@ -454,6 +465,7 @@ Flags:
   -json             emit JSON
   -plain            force plain text, no colour
   -color mode       auto|always|never (default auto)
+  -links mode       clickable headlines: auto|always|never (default auto)
   -width n          output width for wrapping
   -no-cache         bypass the 10 minute cache
   -config path      config file (default %s)

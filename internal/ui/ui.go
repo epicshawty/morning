@@ -22,11 +22,23 @@ import (
 
 // Options controls layout and units.
 type Options struct {
-	Color   bool
+	Rich    bool // use the styled dashboard layout at all
+	Color   bool // emit ANSI colour
+	Links   bool // emit OSC 8 hyperlinks around headlines
 	Width   int
 	Units   string // "c" or "f"
 	Limit   int
 	Version string
+}
+
+// hyperlink wraps text in an OSC 8 terminal hyperlink. Terminals that do not
+// understand it ignore the sequence, and it carries no width, so wrapping and
+// alignment are unaffected.
+func hyperlink(url, text string, on bool) string {
+	if !on || url == "" {
+		return text
+	}
+	return "\x1b]8;;" + url + "\x1b\\" + text + "\x1b]8;;\x1b\\"
 }
 
 // Data is everything the current run managed to collect.
@@ -98,10 +110,17 @@ var (
 
 // Render writes the briefing to w.
 func Render(w io.Writer, d Data) error {
-	if !d.Opts.Color {
+	if !d.Opts.Rich {
 		return renderPlain(w, d)
 	}
-	lipgloss.SetColorProfile(colorProfile())
+
+	// Colour and hyperlinks are independent: a terminal with NO_COLOR still gets
+	// clickable headlines, and a piped run gets neither.
+	if d.Opts.Color {
+		lipgloss.SetColorProfile(colorProfile())
+	} else {
+		lipgloss.SetColorProfile(termenv.Ascii)
+	}
 
 	width := d.Opts.Width
 	if width < 44 {
@@ -158,21 +177,21 @@ func Render(w io.Writer, d Data) error {
 	// ── local news ────────────────────────────────────────────
 	if len(d.Local) > 0 || d.LocalErr != nil {
 		b.WriteString(header(localTitle(d), width))
-		b.WriteString(items(d.Local, d.LocalErr, width))
+		b.WriteString(items(d.Local, d.LocalErr, width, d.Opts.Links))
 		b.WriteString("\n")
 	}
 
 	// ── world news ────────────────────────────────────────────
 	if len(d.World) > 0 || d.WorldErr != nil {
 		b.WriteString(header("World", width))
-		b.WriteString(items(d.World, d.WorldErr, width))
+		b.WriteString(items(d.World, d.WorldErr, width, d.Opts.Links))
 		b.WriteString("\n")
 	}
 
 	// ── tech ──────────────────────────────────────────────────
 	if len(d.Tech) > 0 || d.TechErr != nil {
 		b.WriteString(header("Tech", width))
-		b.WriteString(items(d.Tech, d.TechErr, width))
+		b.WriteString(items(d.Tech, d.TechErr, width, d.Opts.Links))
 		b.WriteString("\n")
 	}
 
@@ -191,7 +210,7 @@ func Render(w io.Writer, d Data) error {
 			if f.Year > 0 {
 				prefix = fmt.Sprint(f.Year) + " —"
 			}
-			b.WriteString(bullet(prefix, f.Text, "", width))
+			b.WriteString(bullet(bulletSpec{prefix: prefix, text: f.Text, url: f.Link}, width, d.Opts.Links))
 		}
 		b.WriteString("\n")
 	}
@@ -231,7 +250,7 @@ func header(title string, width int) string {
 	return fmt.Sprintf("%s %s\n", stSection.Render(strings.ToUpper(title)), stMuted.Render(rule))
 }
 
-func items(list []news.Item, err error, width int) string {
+func items(list []news.Item, err error, width int, links bool) string {
 	if len(list) == 0 {
 		return fmt.Sprintf("  %s\n", stMuted.Render("unavailable — "+short(err)))
 	}
@@ -241,59 +260,72 @@ func items(list []news.Item, err error, width int) string {
 		if it.Score > 0 {
 			tag = fmt.Sprintf("%s · %d", it.Source, it.Score)
 		}
-		if tag == "" {
-			b.WriteString(bullet("", it.Title, "", width))
-			continue
+		sp := bulletSpec{text: it.Title, url: it.URL}
+		if tag != "" {
+			sp.tag = "(" + tag + ")"
 		}
-		b.WriteString(bullet("", it.Title, "("+tag+")", width))
+		b.WriteString(bullet(sp, width, links))
 	}
 	return b.String()
+}
+
+// bulletSpec is one rendered bullet: optional dim prefix, the text, an optional
+// dim trailing tag, and the URL it should link to.
+type bulletSpec struct {
+	prefix string
+	text   string
+	tag    string
+	url    string
 }
 
 // bullet renders one wrapped bullet.
 //
 // prefix, when set, is dimmed at the start of the first line; tag, when set, is
 // dimmed at the end of the last. Wrapping runs on the plain string before any
-// styling, so ANSI sequences can never skew the measured width.
-func bullet(prefix, text, tag string, width int) string {
+// styling, so ANSI sequences can never skew the measured width. The hyperlink is
+// applied per line, after wrapping, so every line of a long headline is
+// clickable.
+func bullet(sp bulletSpec, width int, links bool) string {
 	const gutter = 4 // two spaces of indent plus "· "
 	avail := max(24, width-gutter)
 
-	body := text
-	if prefix != "" {
-		body = prefix + " " + text
+	body := sp.text
+	if sp.prefix != "" {
+		body = sp.prefix + " " + sp.text
 	}
 	lines := wrap(body, avail)
 
 	// \x00 marks the point where the dim tag begins.
-	if tag != "" {
+	if sp.tag != "" {
 		last := len(lines) - 1
-		if utf8.RuneCountInString(lines[last])+1+utf8.RuneCountInString(tag) <= avail {
-			lines[last] += "\x00" + tag
+		if utf8.RuneCountInString(lines[last])+1+utf8.RuneCountInString(sp.tag) <= avail {
+			lines[last] += "\x00" + sp.tag
 		} else {
-			lines = append(lines, "\x00"+tag)
+			lines = append(lines, "\x00"+sp.tag)
 		}
 	}
 
 	var b strings.Builder
 	for i, ln := range lines {
+		var line strings.Builder
 		if i == 0 {
-			b.WriteString("  " + stBullet.Render("·") + " ")
+			line.WriteString("  " + stBullet.Render("·") + " ")
 		} else {
-			b.WriteString("    ")
+			line.WriteString("    ")
 		}
-		if i == 0 && prefix != "" && strings.HasPrefix(ln, prefix) {
-			b.WriteString(stMuted.Render(prefix))
-			ln = strings.TrimPrefix(ln, prefix)
+		if i == 0 && sp.prefix != "" && strings.HasPrefix(ln, sp.prefix) {
+			line.WriteString(stMuted.Render(sp.prefix))
+			ln = strings.TrimPrefix(ln, sp.prefix)
 		}
 		if idx := strings.IndexByte(ln, 0x00); idx >= 0 {
 			if idx > 0 {
-				b.WriteString(stBody.Render(ln[:idx]) + " ")
+				line.WriteString(stBody.Render(ln[:idx]) + " ")
 			}
-			b.WriteString(stMuted.Render(ln[idx+1:]))
+			line.WriteString(stMuted.Render(ln[idx+1:]))
 		} else {
-			b.WriteString(stBody.Render(ln))
+			line.WriteString(stBody.Render(ln))
 		}
+		b.WriteString(hyperlink(sp.url, line.String(), links))
 		b.WriteString("\n")
 	}
 	return b.String()
