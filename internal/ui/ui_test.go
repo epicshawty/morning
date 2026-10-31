@@ -206,6 +206,41 @@ func TestPlainNeverCarriesLinks(t *testing.T) {
 	}
 }
 
+// TestZoneLabel covers the zones tzdata names with a bare offset, which used to
+// print as the meaningless "23:32 +06".
+func TestZoneLabel(t *testing.T) {
+	at := time.Date(2026, 10, 31, 15, 0, 0, 0, time.UTC)
+	cases := []struct{ zone, want string }{
+		{"Asia/Dhaka", "UTC+6"},
+		{"Asia/Dubai", "UTC+4"},
+		{"Asia/Kathmandu", "UTC+5:45"},
+		{"Asia/Tokyo", "JST"},
+		{"America/New_York", "EDT"},
+	}
+	for _, c := range cases {
+		loc, err := time.LoadLocation(c.zone)
+		if err != nil {
+			t.Fatalf("load %s: %v", c.zone, err)
+		}
+		if got := zoneLabel(at.In(loc)); got != c.want {
+			t.Errorf("zoneLabel(%s) = %q, want %q", c.zone, got, c.want)
+		}
+	}
+}
+
+func TestIsNumericZone(t *testing.T) {
+	for _, s := range []string{"+06", "-0330", "+0545"} {
+		if !isNumericZone(s) {
+			t.Errorf("isNumericZone(%q) = false, want true", s)
+		}
+	}
+	for _, s := range []string{"JST", "GMT+9", "UTC", "", "+"} {
+		if isNumericZone(s) {
+			t.Errorf("isNumericZone(%q) = true, want false", s)
+		}
+	}
+}
+
 func TestWrap(t *testing.T) {
 	got := wrap("one two three four", 7)
 	want := []string{"one two", "three", "four"}

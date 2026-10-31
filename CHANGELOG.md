@@ -6,6 +6,18 @@ This project follows [Semantic Versioning](https://semver.org) and
 
 ## [Unreleased]
 
+## [1.3.1] - 2026-10-31
+
+### Fixed
+
+- Zones that tzdata names with a bare offset printed as a stray number beside
+  the clock (`23:32 +06` for Dhaka, `+0545` for Kathmandu). They now read
+  `UTC+6` and `UTC+5:45`.
+- Weather glyphs are now all BMP characters with text presentation, so every
+  terminal draws them exactly one cell wide. The emoji set (🌦 🌧 🌨 🌫 🌤) is two
+  cells in some terminals and one in others, which made the glyph bleed into the
+  description on Windows Terminal.
+
 ## [1.3.0] - 2026-10-31
 
 ### Added
@@ -87,7 +99,8 @@ This project follows [Semantic Versioning](https://semver.org) and
   illumos and AIX across amd64, arm64, arm, 386, riscv64, ppc64le, s390x,
   mips64le and loong64.
 
-[Unreleased]: https://github.com/epicshawty/morning/compare/v1.3.0...HEAD
+[Unreleased]: https://github.com/epicshawty/morning/compare/v1.3.1...HEAD
+[1.3.1]: https://github.com/epicshawty/morning/releases/tag/v1.3.1
 [1.3.0]: https://github.com/epicshawty/morning/releases/tag/v1.3.0
 [1.2.0]: https://github.com/epicshawty/morning/releases/tag/v1.2.0
 [1.1.0]: https://github.com/epicshawty/morning/releases/tag/v1.1.0

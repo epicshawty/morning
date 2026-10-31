@@ -48,6 +48,14 @@ func TestDescribe(t *testing.T) {
 		}
 		if glyph == "" {
 			t.Errorf("Describe(%d) returned no glyph", code)
+			continue
+		}
+		// Astral-plane characters are two cells in some terminals and one in
+		// others, which makes them bleed into the text beside them.
+		for _, r := range glyph {
+			if r > 0xFFFF {
+				t.Errorf("Describe(%d) glyph %q is outside the BMP", code, glyph)
+			}
 		}
 	}
 }

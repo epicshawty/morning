@@ -235,30 +235,34 @@ func clock(iso string) string {
 }
 
 // Describe maps a WMO weather code to text and a glyph.
+//
+// The glyphs are all BMP characters with text presentation, so every terminal
+// draws them one cell wide. Emoji like 🌦 are two cells in some terminals and
+// one in others, which makes them bleed into the description.
 func Describe(code int) (string, string) {
 	switch {
 	case code == 0:
 		return "Clear", "☀"
 	case code == 1:
-		return "Mainly clear", "🌤"
+		return "Mainly clear", "☼"
 	case code == 2:
-		return "Partly cloudy", "⛅"
+		return "Partly cloudy", "☁"
 	case code == 3:
 		return "Overcast", "☁"
 	case code == 45 || code == 48:
-		return "Fog", "🌫"
+		return "Fog", "≋"
 	case code >= 51 && code <= 57:
-		return "Drizzle", "🌦"
+		return "Drizzle", "☂"
 	case code >= 61 && code <= 67:
-		return "Rain", "🌧"
+		return "Rain", "☂"
 	case code >= 71 && code <= 77:
-		return "Snow", "🌨"
+		return "Snow", "❄"
 	case code >= 80 && code <= 82:
-		return "Rain showers", "🌦"
+		return "Rain showers", "☂"
 	case code == 85 || code == 86:
-		return "Snow showers", "🌨"
+		return "Snow showers", "❄"
 	case code >= 95:
-		return "Thunderstorm", "⛈"
+		return "Thunderstorm", "☇"
 	}
 	return "Unknown", "•"
 }

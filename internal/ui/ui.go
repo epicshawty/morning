@@ -238,11 +238,47 @@ func factTitle(d Data) string {
 // dateLine renders the local date and time of the place being reported on,
 // noting this machine's clock only when the two differ.
 func dateLine(d Data) string {
-	s := d.Now.Format("Monday, 2 January 2006 · 15:04 MST")
+	s := d.Now.Format("Monday, 2 January 2006 · 15:04") + " " + zoneLabel(d.Now)
 	if d.HomeNow != nil {
 		s += " (" + d.HomeNow.Format("15:04") + " your time)"
 	}
 	return s
+}
+
+// zoneLabel names the zone the way a person would read it.
+//
+// tzdata has no letter abbreviation for some zones and reports a bare offset
+// instead — Asia/Dhaka is "+06", Asia/Kathmandu "+0545" — which reads as a stray
+// number next to the clock. Those become "UTC+6" and "UTC+5:45".
+func zoneLabel(t time.Time) string {
+	name := t.Format("MST")
+	if isNumericZone(name) {
+		_, offset := t.Zone()
+		sign := "+"
+		if offset < 0 {
+			sign, offset = "-", -offset
+		}
+		hours, minutes := offset/3600, (offset%3600)/60
+		if minutes == 0 {
+			return fmt.Sprintf("UTC%s%d", sign, hours)
+		}
+		return fmt.Sprintf("UTC%s%d:%02d", sign, hours, minutes)
+	}
+	return name
+}
+
+// isNumericZone reports whether tzdata gave an offset ("+06", "-0330") rather
+// than a name like "JST".
+func isNumericZone(name string) bool {
+	if len(name) < 2 || (name[0] != '+' && name[0] != '-') {
+		return false
+	}
+	for _, r := range name[1:] {
+		if r < '0' || r > '9' {
+			return false
+		}
+	}
+	return true
 }
 
 func header(title string, width int) string {
