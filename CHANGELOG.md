@@ -33,5 +33,6 @@ This project follows [Semantic Versioning](https://semver.org) and
   illumos and AIX across amd64, arm64, arm, 386, riscv64, ppc64le, s390x,
   mips64le and loong64.
 
-[Unreleased]: https://github.com/epicshawty/morning/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/epicshawty/morning/compare/v1.0.1...HEAD
+[1.0.1]: https://github.com/epicshawty/morning/releases/tag/v1.0.1
 [1.0.0]: https://github.com/epicshawty/morning/releases/tag/v1.0.0
