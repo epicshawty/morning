@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"sync"
@@ -32,12 +33,47 @@ import (
 // version is injected at build time: -ldflags "-X main.version=v1.0.0"
 var version = "dev"
 
+// buildVersion reports the tag baked in by ldflags, falling back to the module
+// version recorded in the build info. `go install module@v1.2.3` passes no
+// ldflags, so without this the documented install path reports "dev".
+func buildVersion() string {
+	if version != "dev" {
+		return version
+	}
+	if bi, ok := debug.ReadBuildInfo(); ok && isReleaseTag(bi.Main.Version) {
+		return bi.Main.Version
+	}
+	return version
+}
+
+// isReleaseTag accepts v1.2.3 and rejects the pseudo-versions Go stamps into
+// local builds (v1.2.4-0.20260101...-dirty), which are noise in -version.
+func isReleaseTag(v string) bool {
+	if !strings.HasPrefix(v, "v") {
+		return false
+	}
+	parts := strings.Split(v[1:], ".")
+	if len(parts) != 3 {
+		return false
+	}
+	for _, p := range parts {
+		if p == "" {
+			return false
+		}
+		if _, err := strconv.Atoi(p); err != nil {
+			return false
+		}
+	}
+	return true
+}
+
 const (
 	cacheTTL = 10 * time.Minute
 	timeout  = 20 * time.Second
 )
 
 func main() {
+	version = buildVersion()
 	if err := run(); err != nil {
 		fmt.Fprintln(os.Stderr, "morning: "+err.Error())
 		os.Exit(1)

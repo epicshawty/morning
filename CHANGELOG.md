@@ -6,6 +6,14 @@ This project follows [Semantic Versioning](https://semver.org) and
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-10-31
+
+### Fixed
+
+- `go install github.com/epicshawty/morning@latest` reported `morning dev`.
+  The release version now falls back to the module build info, so installed
+  binaries report their real tag. Local builds still report `dev`.
+
 ## [1.0.0] - 2026-10-31
 
 ### Added
