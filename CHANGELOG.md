@@ -6,6 +6,25 @@ This project follows [Semantic Versioning](https://semver.org) and
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-10-31
+
+### Added
+
+- The clock, the greeting and the temperature unit now follow the reported
+  city. `-city Tokyo` prints JST and °C; `-city Boston` prints EDT and °F. When
+  the city's zone differs from your machine's, your own time is shown in
+  brackets.
+- `-units auto` (the new default) picks °F for the countries that use it and °C
+  everywhere else. `-units c` and `-units f` still override it.
+- `units` field in `-json` output.
+- The IANA zone database is embedded (`time/tzdata`), so city timezones resolve
+  on hosts with no zoneinfo installed.
+
+### Changed
+
+- `-units` defaults to `auto` instead of `c`, and the config's `"units"` accepts
+  `"auto"`.
+
 ## [1.0.1] - 2026-10-31
 
 ### Fixed
@@ -33,6 +52,7 @@ This project follows [Semantic Versioning](https://semver.org) and
   illumos and AIX across amd64, arm64, arm, 386, riscv64, ppc64le, s390x,
   mips64le and loong64.
 
-[Unreleased]: https://github.com/epicshawty/morning/compare/v1.0.1...HEAD
+[Unreleased]: https://github.com/epicshawty/morning/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/epicshawty/morning/releases/tag/v1.1.0
 [1.0.1]: https://github.com/epicshawty/morning/releases/tag/v1.0.1
 [1.0.0]: https://github.com/epicshawty/morning/releases/tag/v1.0.0

@@ -109,11 +109,12 @@ func Geocode(ctx context.Context, name string) (Place, error) {
 // LocateIP guesses the current place from the public IP. Best-effort only.
 func LocateIP(ctx context.Context) (Place, error) {
 	type ipinfo struct {
-		City    string `json:"city"`
-		Region  string `json:"region"`
-		Country string `json:"country"`
-		Loc     string `json:"loc"`
-		Bogon   bool   `json:"bogon"`
+		City     string `json:"city"`
+		Region   string `json:"region"`
+		Country  string `json:"country"`
+		Loc      string `json:"loc"`
+		Timezone string `json:"timezone"`
+		Bogon    bool   `json:"bogon"`
 	}
 	var ii ipinfo
 	if err := fetch.GetJSON(ctx, "https://ipinfo.io/json", &ii); err == nil && ii.Loc != "" {
@@ -122,27 +123,42 @@ func LocateIP(ctx context.Context) (Place, error) {
 			la, e1 := strconv.ParseFloat(lat, 64)
 			lo, e2 := strconv.ParseFloat(lon, 64)
 			if e1 == nil && e2 == nil {
-				return Place{Name: ii.City, Region: ii.Region, Country: ii.Country, Lat: la, Lon: lo}, nil
+				return Place{
+					Name:    ii.City,
+					Region:  ii.Region,
+					Country: ii.Country,
+					Lat:     la,
+					Lon:     lo,
+					TZ:      ii.Timezone,
+				}, nil
 			}
 		}
 	}
 	// Fallback: ip-api.com (free tier is HTTP-only).
 	type ipapi struct {
-		Status string  `json:"status"`
-		City   string  `json:"city"`
-		Region string  `json:"regionName"`
-		CC     string  `json:"countryCode"`
-		Lat    float64 `json:"lat"`
-		Lon    float64 `json:"lon"`
+		Status   string  `json:"status"`
+		City     string  `json:"city"`
+		Region   string  `json:"regionName"`
+		CC       string  `json:"countryCode"`
+		Lat      float64 `json:"lat"`
+		Lon      float64 `json:"lon"`
+		Timezone string  `json:"timezone"`
 	}
 	var ia ipapi
-	if err := fetch.GetJSON(ctx, "http://ip-api.com/json/?fields=status,city,regionName,countryCode,lat,lon", &ia); err != nil {
+	if err := fetch.GetJSON(ctx, "http://ip-api.com/json/?fields=status,city,regionName,countryCode,lat,lon,timezone", &ia); err != nil {
 		return Place{}, err
 	}
 	if ia.Status != "success" {
 		return Place{}, errors.New("ip geolocation failed")
 	}
-	return Place{Name: ia.City, Region: ia.Region, Country: ia.CC, Lat: ia.Lat, Lon: ia.Lon}, nil
+	return Place{
+		Name:    ia.City,
+		Region:  ia.Region,
+		Country: ia.CC,
+		Lat:     ia.Lat,
+		Lon:     ia.Lon,
+		TZ:      ia.Timezone,
+	}, nil
 }
 
 type forecastResp struct {

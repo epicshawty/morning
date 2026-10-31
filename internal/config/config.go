@@ -20,7 +20,7 @@ type Config struct {
 // Default returns the built-in configuration.
 func Default() Config {
 	return Config{
-		Units:    "c",
+		Units:    "", // auto: follow the reported place
 		Limit:    5,
 		Sections: []string{"weather", "world", "tech", "fact"},
 	}
@@ -76,7 +76,7 @@ func (c Config) Save(path string) error {
 func (c *Config) normalize() {
 	d := Default()
 	if c.Units != "c" && c.Units != "f" {
-		c.Units = d.Units
+		c.Units = "" // anything else (including "auto") follows the place
 	}
 	if c.Limit <= 0 {
 		c.Limit = d.Limit

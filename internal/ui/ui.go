@@ -32,6 +32,7 @@ type Options struct {
 // Data is everything the current run managed to collect.
 type Data struct {
 	Now        time.Time
+	HomeNow    *time.Time // the machine's clock, only when it differs from Now
 	Greeting   string
 	Weather    *weather.Report
 	WeatherErr error
@@ -49,6 +50,7 @@ type JSON struct {
 	GeneratedAt string       `json:"generated_at"`
 	Greeting    string       `json:"greeting"`
 	Version     string       `json:"version"`
+	Units       string       `json:"units"`
 	Weather     *WeatherOut  `json:"weather,omitempty"`
 	Error       string       `json:"weather_error,omitempty"`
 	World       []news.Item  `json:"world,omitempty"`
@@ -112,10 +114,12 @@ func Render(w io.Writer, d Data) error {
 		glyph = "◐"
 	}
 	fmt.Fprintf(&b, "%s  %s\n", stGreet.Render(glyph), stGreet.Render(d.Greeting))
-	fmt.Fprintf(&b, "   %s\n", stDate.Render(d.Now.Format("Monday, 2 January 2006 · 15:04")))
+	fmt.Fprintf(&b, "   %s\n", stDate.Render(dateLine(d)))
 
 	if d.Weather != nil {
-		fmt.Fprintf(&b, "   %s\n", stPlace.Render(placeLine(d)))
+		if l := d.Weather.Place.Label(); l != "" {
+			fmt.Fprintf(&b, "   %s\n", stPlace.Render(l))
+		}
 	}
 	b.WriteString("\n")
 
@@ -183,16 +187,14 @@ func Render(w io.Writer, d Data) error {
 	return nil
 }
 
-func placeLine(d Data) string {
-	w := d.Weather
-	parts := []string{}
-	if l := w.Place.Label(); l != "" {
-		parts = append(parts, l)
+// dateLine renders the local date and time of the place being reported on,
+// noting this machine's clock only when the two differ.
+func dateLine(d Data) string {
+	s := d.Now.Format("Monday, 2 January 2006 · 15:04 MST")
+	if d.HomeNow != nil {
+		s += " (" + d.HomeNow.Format("15:04") + " your time)"
 	}
-	if w.TimezoneAb != "" {
-		parts = append(parts, w.TimezoneAb)
-	}
-	return strings.Join(parts, " · ")
+	return s
 }
 
 func header(title string, width int) string {
@@ -328,7 +330,7 @@ func max(a, b int) int {
 func renderPlain(w io.Writer, d Data) error {
 	var b strings.Builder
 	fmt.Fprintf(&b, "%s\n", d.Greeting)
-	fmt.Fprintf(&b, "%s\n\n", d.Now.Format("Monday, 2 January 2006 · 15:04"))
+	fmt.Fprintf(&b, "%s\n\n", dateLine(d))
 
 	if d.Weather != nil {
 		wx := d.Weather

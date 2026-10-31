@@ -17,6 +17,7 @@ import (
 	"sync"
 	"syscall"
 	"time"
+	_ "time/tzdata" // embed the zone database so -city works on any OS
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/muesli/termenv"
@@ -83,7 +84,7 @@ func main() {
 func run() error {
 	var (
 		cityFlag     = flag.String("city", "", "city to report on (default: config, then IP lookup)")
-		unitsFlag    = flag.String("units", "", "temperature units: c or f")
+		unitsFlag    = flag.String("units", "", "temperature units: c, f or auto (default auto, follows the city)")
 		sectionsFlag = flag.String("sections", "", "comma list of: weather,world,tech,fact")
 		configFlag   = flag.String("config", "", "config file path")
 		colorFlag    = flag.String("color", "auto", "colour: auto, always, never")
@@ -122,10 +123,7 @@ func run() error {
 		cfg.Sections = splitList(*sectionsFlag)
 	}
 
-	units := "c"
-	if cfg.Units == "f" {
-		units = "f"
-	}
+	units := cfg.Units // "", "c" or "f"; empty means follow the city
 	limit := cfg.Limit
 	if limit < 1 {
 		limit = 5
@@ -167,7 +165,6 @@ func run() error {
 	}
 
 	now := time.Now()
-	greeting := greet(now)
 
 	// Fetch everything concurrently; each section may fail on its own.
 	var (
@@ -223,11 +220,31 @@ func run() error {
 		}
 	}
 
+	// The briefing describes a place, so the clock, the greeting and the units
+	// follow that place instead of this machine.
+	cityNow := now
+	var homeNow *time.Time
+	if wx != nil {
+		if loc := locationOf(wx.Place); loc != nil {
+			cityNow = now.In(loc)
+		}
+		if cityNow.Format("-0700") != now.Format("-0700") {
+			home := now.In(time.Local)
+			homeNow = &home
+		}
+	}
+	greeting := greet(cityNow)
+
+	if units == "" {
+		units = autoUnits(wx)
+	}
+
 	if *jsonFlag {
 		out := ui.JSON{
-			GeneratedAt: now.Format(time.RFC3339),
+			GeneratedAt: cityNow.Format(time.RFC3339),
 			Greeting:    greeting,
 			Version:     version,
+			Units:       units,
 			World:       world,
 			Tech:        tech,
 			OnThisDay:   factsList,
@@ -245,7 +262,8 @@ func run() error {
 	}
 
 	return ui.Render(os.Stdout, ui.Data{
-		Now:        now,
+		Now:        cityNow,
+		HomeNow:    homeNow,
 		Greeting:   greeting,
 		Weather:    wx,
 		WeatherErr: errWeather,
@@ -259,6 +277,32 @@ func run() error {
 			Color: color, Width: width, Units: units, Limit: limit, Version: version,
 		},
 	})
+}
+
+// fahrenheitCountries are the places that report temperature in °F. Everything
+// else — including Canada and the UK — uses °C.
+var fahrenheitCountries = map[string]bool{
+	"US": true, "BS": true, "BZ": true, "KY": true,
+	"PW": true, "FM": true, "MH": true, "LR": true,
+}
+
+// autoUnits picks the unit the reported place actually uses.
+func autoUnits(wx *weather.Report) string {
+	if wx != nil && fahrenheitCountries[strings.ToUpper(wx.Place.Country)] {
+		return "f"
+	}
+	return "c"
+}
+
+// locationOf resolves a place's IANA zone. It embeds time/tzdata, so this works
+// on a bare Windows or container host with no zoneinfo installed.
+func locationOf(p weather.Place) *time.Location {
+	if p.TZ != "" {
+		if loc, err := time.LoadLocation(p.TZ); err == nil {
+			return loc
+		}
+	}
+	return nil
 }
 
 // Section errors are package-level so the fetch goroutines stay small; each is
@@ -355,7 +399,7 @@ Usage:
 
 Flags:
   -city string      city to report on (default: config, then IP lookup)
-  -units c|f        temperature units (default c)
+  -units c|f|auto   temperature units (default auto: follows the city)
   -sections list    any of weather,world,tech,fact (default all)
   -limit n          headlines per section, 1-20 (default 5)
   -json             emit JSON

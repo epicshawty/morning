@@ -19,8 +19,8 @@ func TestLoadMissingReturnsDefaults(t *testing.T) {
 func TestNormalizeRejectsJunk(t *testing.T) {
 	cfg := Config{Units: "kelvin", Limit: -3}
 	cfg.normalize()
-	if cfg.Units != "c" {
-		t.Errorf("units = %q, want c", cfg.Units)
+	if cfg.Units != "" {
+		t.Errorf("units = %q, want empty (auto)", cfg.Units)
 	}
 	if cfg.Limit != 5 {
 		t.Errorf("limit = %d, want 5", cfg.Limit)

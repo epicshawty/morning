@@ -28,10 +28,12 @@ morning
 
 That is the whole thing. Location is detected from your IP unless you say otherwise.
 
+The clock, the greeting and the temperature unit all follow the city you ask about: `-city Los Angeles` reports in PDT and °F, `-city Tokyo` in JST and °C. Your own clock is noted in brackets when the two differ.
+
 | Flag | Default | Meaning |
 |---|---|---|
 | `-city <name>` | auto | City to report on, e.g. `-city Osaka` |
-| `-units c\|f` | `c` | Temperature units |
+| `-units c\|f\|auto` | `auto` | Temperature units; `auto` follows the city |
 | `-sections <list>` | all | Any of `weather,world,tech,fact` |
 | `-limit <n>` | `5` | Headlines per section (1–20) |
 | `-json` | off | Machine-readable output |
@@ -61,13 +63,13 @@ Optional. Written to `~/.config/morning/config.json` on Linux and macOS, `%AppDa
 ```json
 {
   "city": "Osaka",
-  "units": "c",
+  "units": "auto",
   "limit": 5,
   "sections": ["weather", "world", "tech", "fact"]
 }
 ```
 
-Flags override the file; the file overrides defaults.
+Flags override the file; the file overrides defaults. `"units": "auto"` (the default) follows the city; set `"c"` or `"f"` to pin it.
 
 ## Data sources
 
