@@ -118,6 +118,43 @@ func TestUnitsSwitch(t *testing.T) {
 	}
 }
 
+// TestLocalSections checks the city-specific sections and their labels.
+func TestLocalSections(t *testing.T) {
+	d := fixture()
+	d.LocalName = "Boston"
+	d.Local = []news.Item{{Title: "A local headline", Source: "The Boston Globe"}}
+	d.FactCity = "Boston"
+	d.Facts = []facts.Fact{{Year: 1919, Text: "The Great Molasses Flood.", KM: 2}}
+
+	var b bytes.Buffer
+	if err := Render(&b, d); err != nil {
+		t.Fatalf("Render: %v", err)
+	}
+	out := b.String()
+	for _, want := range []string{
+		"LOCAL · BOSTON",
+		"- A local headline (The Boston Globe)",
+		"ON THIS DAY IN BOSTON",
+		"- 1919: The Great Molasses Flood.",
+	} {
+		if !strings.Contains(strings.ToUpper(out), strings.ToUpper(want)) {
+			t.Errorf("missing %q in:\n%s", want, out)
+		}
+	}
+}
+
+// TestGlobalFactsStayUnlabelled guards the fallback: no city means no claim.
+func TestGlobalFactsStayUnlabelled(t *testing.T) {
+	d := fixture()
+	var b bytes.Buffer
+	if err := Render(&b, d); err != nil {
+		t.Fatalf("Render: %v", err)
+	}
+	if strings.Contains(b.String(), "ON THIS DAY IN") {
+		t.Errorf("global facts should not claim a city:\n%s", b.String())
+	}
+}
+
 func TestWrap(t *testing.T) {
 	got := wrap("one two three four", 7)
 	want := []string{"one two", "three", "four"}

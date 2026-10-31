@@ -36,26 +36,32 @@ type Data struct {
 	Greeting   string
 	Weather    *weather.Report
 	WeatherErr error
+	Local      []news.Item
+	LocalErr   error
+	LocalName  string
 	World      []news.Item
 	WorldErr   error
 	Tech       []news.Item
 	TechErr    error
 	Facts      []facts.Fact
 	FactsErr   error
+	FactCity   string // set when Facts were narrowed to a city
 	Opts       Options
 }
 
 // JSON is the stable machine-readable shape of a run.
 type JSON struct {
-	GeneratedAt string       `json:"generated_at"`
-	Greeting    string       `json:"greeting"`
-	Version     string       `json:"version"`
-	Units       string       `json:"units"`
-	Weather     *WeatherOut  `json:"weather,omitempty"`
-	Error       string       `json:"weather_error,omitempty"`
-	World       []news.Item  `json:"world,omitempty"`
-	Tech        []news.Item  `json:"tech,omitempty"`
-	OnThisDay   []facts.Fact `json:"on_this_day,omitempty"`
+	GeneratedAt   string       `json:"generated_at"`
+	Greeting      string       `json:"greeting"`
+	Version       string       `json:"version"`
+	Units         string       `json:"units"`
+	Weather       *WeatherOut  `json:"weather,omitempty"`
+	Error         string       `json:"weather_error,omitempty"`
+	Local         []news.Item  `json:"local,omitempty"`
+	World         []news.Item  `json:"world,omitempty"`
+	Tech          []news.Item  `json:"tech,omitempty"`
+	OnThisDay     []facts.Fact `json:"on_this_day,omitempty"`
+	OnThisDayCity string       `json:"on_this_day_city,omitempty"`
 }
 
 // WeatherOut is the weather report with the requested unit pre-rendered.
@@ -149,6 +155,13 @@ func Render(w io.Writer, d Data) error {
 		fmt.Fprintf(&b, "  %s\n\n", stMuted.Render("unavailable — "+short(d.WeatherErr)))
 	}
 
+	// ── local news ────────────────────────────────────────────
+	if len(d.Local) > 0 || d.LocalErr != nil {
+		b.WriteString(header(localTitle(d), width))
+		b.WriteString(items(d.Local, d.LocalErr, width))
+		b.WriteString("\n")
+	}
+
 	// ── world news ────────────────────────────────────────────
 	if len(d.World) > 0 || d.WorldErr != nil {
 		b.WriteString(header("World", width))
@@ -165,7 +178,7 @@ func Render(w io.Writer, d Data) error {
 
 	// ── on this day ───────────────────────────────────────────
 	if len(d.Facts) > 0 || d.FactsErr != nil {
-		b.WriteString(header("On this day", width))
+		b.WriteString(header(factTitle(d), width))
 		if len(d.Facts) == 0 {
 			fmt.Fprintf(&b, "  %s\n\n", stMuted.Render("unavailable — "+short(d.FactsErr)))
 		}
@@ -185,6 +198,22 @@ func Render(w io.Writer, d Data) error {
 
 	fmt.Fprint(w, indent(strings.TrimRight(b.String(), "\n")+"\n", "  "))
 	return nil
+}
+
+// localTitle names the city section after the place being reported on.
+func localTitle(d Data) string {
+	if d.LocalName != "" {
+		return "Local · " + d.LocalName
+	}
+	return "Local"
+}
+
+// factTitle flags when the on-this-day list has been narrowed to a city.
+func factTitle(d Data) string {
+	if d.FactCity != "" {
+		return "On this day in " + d.FactCity
+	}
+	return "On this day"
 }
 
 // dateLine renders the local date and time of the place being reported on,
@@ -211,6 +240,10 @@ func items(list []news.Item, err error, width int) string {
 		tag := it.Source
 		if it.Score > 0 {
 			tag = fmt.Sprintf("%s · %d", it.Source, it.Score)
+		}
+		if tag == "" {
+			b.WriteString(bullet("", it.Title, "", width))
+			continue
 		}
 		b.WriteString(bullet("", it.Title, "("+tag+")", width))
 	}
@@ -351,6 +384,11 @@ func renderPlain(w io.Writer, d Data) error {
 		fmt.Fprintf(&b, "%s\n  unavailable: %s\n\n", headerPlain("WEATHER"), short(d.WeatherErr))
 	}
 
+	if len(d.Local) > 0 || d.LocalErr != nil {
+		b.WriteString(headerPlain(strings.ToUpper(localTitle(d))) + "\n")
+		b.WriteString(plainItems(d.Local, d.LocalErr))
+		b.WriteString("\n")
+	}
 	if len(d.World) > 0 || d.WorldErr != nil {
 		b.WriteString(headerPlain("WORLD") + "\n")
 		b.WriteString(plainItems(d.World, d.WorldErr))
@@ -362,7 +400,7 @@ func renderPlain(w io.Writer, d Data) error {
 		b.WriteString("\n")
 	}
 	if len(d.Facts) > 0 || d.FactsErr != nil {
-		b.WriteString(headerPlain("ON THIS DAY") + "\n")
+		b.WriteString(headerPlain(strings.ToUpper(factTitle(d))) + "\n")
 		if len(d.Facts) == 0 {
 			fmt.Fprintf(&b, "  unavailable: %s\n", short(d.FactsErr))
 		}
@@ -396,6 +434,10 @@ func plainItems(list []news.Item, err error) string {
 		tag := it.Source
 		if it.Score > 0 {
 			tag = fmt.Sprintf("%s, %d points", it.Source, it.Score)
+		}
+		if tag == "" {
+			fmt.Fprintf(&b, "  - %s\n", oneLine(it.Title))
+			continue
 		}
 		fmt.Fprintf(&b, "  - %s (%s)\n", oneLine(it.Title), tag)
 	}

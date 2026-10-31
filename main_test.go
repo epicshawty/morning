@@ -55,13 +55,12 @@ func TestAutoUnits(t *testing.T) {
 		{"", "c"},
 	}
 	for _, c := range cases {
-		wx := &weather.Report{Place: weather.Place{Country: c.country}}
-		if got := autoUnits(wx); got != c.want {
+		if got := autoUnits(weather.Place{Country: c.country}); got != c.want {
 			t.Errorf("autoUnits(%q) = %q, want %q", c.country, got, c.want)
 		}
 	}
-	if got := autoUnits(nil); got != "c" {
-		t.Errorf("autoUnits(nil) = %q, want c", got)
+	if got := autoUnits(weather.Place{}); got != "c" {
+		t.Errorf("autoUnits(empty) = %q, want c", got)
 	}
 }
 

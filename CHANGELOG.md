@@ -6,6 +6,26 @@ This project follows [Semantic Versioning](https://semver.org) and
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-10-31
+
+### Added
+
+- **Local headlines.** A `local` section searches Google News RSS (Bing News as
+  fallback) for the reported city and tags each item with its outlet.
+- **Local history.** "On this day" now prefers events within 50 km of the city,
+  heading itself `ON THIS DAY IN <CITY>` when it finds any. Matching requires
+  both Wikidata coordinates and the city's name in the article or text, so a
+  broadly-geolocated entity cannot pass as local.
+- `-sections local` (aliases `city`, `citynews`); `local` joins the defaults.
+- `local` and `on_this_day_city` fields in `-json` output.
+
+### Changed
+
+- The place is now resolved once and shared by weather, local news and local
+  history, instead of being tied to the weather fetch.
+- RSS parsing prefers an item's own `<source>` outlet and strips the duplicated
+  `- Outlet` suffix from search-feed titles.
+
 ## [1.1.0] - 2026-10-31
 
 ### Added
@@ -52,7 +72,8 @@ This project follows [Semantic Versioning](https://semver.org) and
   illumos and AIX across amd64, arm64, arm, 386, riscv64, ppc64le, s390x,
   mips64le and loong64.
 
-[Unreleased]: https://github.com/epicshawty/morning/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/epicshawty/morning/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/epicshawty/morning/releases/tag/v1.2.0
 [1.1.0]: https://github.com/epicshawty/morning/releases/tag/v1.1.0
 [1.0.1]: https://github.com/epicshawty/morning/releases/tag/v1.0.1
 [1.0.0]: https://github.com/epicshawty/morning/releases/tag/v1.0.0

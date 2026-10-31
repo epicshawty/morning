@@ -85,7 +85,7 @@ func run() error {
 	var (
 		cityFlag     = flag.String("city", "", "city to report on (default: config, then IP lookup)")
 		unitsFlag    = flag.String("units", "", "temperature units: c, f or auto (default auto, follows the city)")
-		sectionsFlag = flag.String("sections", "", "comma list of: weather,world,tech,fact")
+		sectionsFlag = flag.String("sections", "", "comma list of: weather,local,world,tech,fact")
 		configFlag   = flag.String("config", "", "config file path")
 		colorFlag    = flag.String("color", "auto", "colour: auto, always, never")
 		jsonFlag     = flag.Bool("json", false, "emit JSON")
@@ -168,18 +168,51 @@ func run() error {
 
 	// Fetch everything concurrently; each section may fail on its own.
 	var (
-		wg        sync.WaitGroup
-		wx        *weather.Report
-		world     []news.Item
-		tech      []news.Item
-		factsList []facts.Fact
+		wg         sync.WaitGroup
+		wx         *weather.Report
+		world      []news.Item
+		local      []news.Item
+		tech       []news.Item
+		factsList  []facts.Fact
+		localFacts []facts.Fact
 	)
+
+	if want["world"] {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			world, errWorld = news.World(ctx, limit)
+		}()
+	}
+	if want["tech"] {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			tech, errTech = news.Tech(ctx, limit)
+		}()
+	}
+
+	// Weather, local news and local history all describe one place, so resolve it
+	// once — while the two feeds above are already in flight.
+	var place weather.Place
+	if want["weather"] || want["local"] || want["fact"] {
+		p, err := resolvePlace(ctx, cfg.City)
+		if err != nil {
+			errPlace = err
+		} else {
+			place = p
+		}
+	}
 
 	if want["weather"] {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			r, err := loadWeather(ctx, cfg.City)
+			if errPlace != nil {
+				errWeather = errPlace
+				return
+			}
+			r, err := weather.Fetch(ctx, place)
 			if err != nil {
 				errWeather = err
 				return
@@ -187,35 +220,40 @@ func run() error {
 			wx = &r
 		}()
 	}
-	if want["world"] {
+	if want["local"] {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			list, err := news.World(ctx, limit)
-			world, errWorld = list, err
-		}()
-	}
-	if want["tech"] {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			list, err := news.Tech(ctx, limit)
-			tech, errTech = list, err
+			if errPlace != nil {
+				errLocal = errPlace
+				return
+			}
+			local, errLocal = news.Local(ctx, place.Name, limit)
 		}()
 	}
 	if want["fact"] {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			list, err := facts.OnThisDay(ctx, now)
-			factsList, errFacts = list, err
+			if list, err := facts.OnThisDay(ctx, now); err != nil {
+				errFacts = err
+			} else {
+				factsList = list
+			}
+			// A city-specific list only exists on some days; when it does, it is
+			// more interesting than the global one.
+			if errPlace == nil && place.Name != "" {
+				if lf, err := facts.Local(ctx, now, place.Lat, place.Lon, place.Name, 2); err == nil {
+					localFacts = lf
+				}
+			}
 		}()
 	}
 	wg.Wait()
 
 	if want["weather"] && wx == nil && errWeather != nil {
 		// A briefing with no weather at all is a failed briefing.
-		if !want["world"] && !want["tech"] && !want["fact"] {
+		if !want["world"] && !want["tech"] && !want["fact"] && !want["local"] {
 			return fmt.Errorf("weather: %w", errWeather)
 		}
 	}
@@ -224,8 +262,8 @@ func run() error {
 	// follow that place instead of this machine.
 	cityNow := now
 	var homeNow *time.Time
-	if wx != nil {
-		if loc := locationOf(wx.Place); loc != nil {
+	if place.Name != "" {
+		if loc := locationOf(place); loc != nil {
 			cityNow = now.In(loc)
 		}
 		if cityNow.Format("-0700") != now.Format("-0700") {
@@ -236,7 +274,14 @@ func run() error {
 	greeting := greet(cityNow)
 
 	if units == "" {
-		units = autoUnits(wx)
+		units = autoUnits(place)
+	}
+
+	// Local history beats the global list when today has something nearby.
+	factCity := ""
+	if len(localFacts) > 0 {
+		factsList = localFacts
+		factCity = place.Name
 	}
 
 	if *jsonFlag {
@@ -245,9 +290,13 @@ func run() error {
 			Greeting:    greeting,
 			Version:     version,
 			Units:       units,
+			Local:       local,
 			World:       world,
 			Tech:        tech,
 			OnThisDay:   factsList,
+		}
+		if factCity != "" {
+			out.OnThisDayCity = factCity
 		}
 		if wx != nil {
 			out.Weather = &ui.WeatherOut{
@@ -267,12 +316,16 @@ func run() error {
 		Greeting:   greeting,
 		Weather:    wx,
 		WeatherErr: errWeather,
+		Local:      local,
+		LocalErr:   errLocal,
+		LocalName:  place.Name,
 		World:      world,
 		WorldErr:   errWorld,
 		Tech:       tech,
 		TechErr:    errTech,
 		Facts:      factsList,
 		FactsErr:   errFacts,
+		FactCity:   factCity,
 		Opts: ui.Options{
 			Color: color, Width: width, Units: units, Limit: limit, Version: version,
 		},
@@ -287,8 +340,8 @@ var fahrenheitCountries = map[string]bool{
 }
 
 // autoUnits picks the unit the reported place actually uses.
-func autoUnits(wx *weather.Report) string {
-	if wx != nil && fahrenheitCountries[strings.ToUpper(wx.Place.Country)] {
+func autoUnits(p weather.Place) string {
+	if fahrenheitCountries[strings.ToUpper(p.Country)] {
 		return "f"
 	}
 	return "c"
@@ -306,29 +359,23 @@ func locationOf(p weather.Place) *time.Location {
 }
 
 // Section errors are package-level so the fetch goroutines stay small; each is
-// written by exactly one goroutine and read only after wg.Wait.
+// written by at most one goroutine and read only after wg.Wait.
 var (
-	errWeather, errWorld, errTech, errFacts error
+	errPlace, errWeather, errLocal, errWorld, errTech, errFacts error
 )
 
-// loadWeather resolves a location (config city, else IP) and fetches conditions.
-func loadWeather(ctx context.Context, city string) (weather.Report, error) {
-	var (
-		place weather.Place
-		err   error
-	)
+// resolvePlace turns the configured city, or the public IP, into coordinates.
+// Everything place-bound (weather, local news, local history, the clock) hangs
+// off this one lookup.
+func resolvePlace(ctx context.Context, city string) (weather.Place, error) {
 	if city != "" {
-		place, err = weather.Geocode(ctx, city)
-		if err != nil {
-			return weather.Report{}, err
-		}
-	} else {
-		place, err = weather.LocateIP(ctx)
-		if err != nil {
-			return weather.Report{}, fmt.Errorf("could not auto-detect location (pass --city): %w", err)
-		}
+		return weather.Geocode(ctx, city)
 	}
-	return weather.Fetch(ctx, place)
+	p, err := weather.LocateIP(ctx)
+	if err != nil {
+		return weather.Place{}, fmt.Errorf("could not auto-detect location (pass -city): %w", err)
+	}
+	return p, nil
 }
 
 func greet(t time.Time) string {
@@ -348,10 +395,12 @@ func sections(list []string) map[string]bool {
 	out := map[string]bool{}
 	for _, s := range list {
 		switch strings.ToLower(strings.TrimSpace(s)) {
-		case "weather", "world", "tech", "fact":
+		case "weather", "local", "world", "tech", "fact":
 			out[strings.ToLower(strings.TrimSpace(s))] = true
 		case "news":
 			out["world"] = true
+		case "city", "citynews":
+			out["local"] = true
 		case "facts", "onthisday":
 			out["fact"] = true
 		}

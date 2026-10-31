@@ -34,7 +34,7 @@ The clock, the greeting and the temperature unit all follow the city you ask abo
 |---|---|---|
 | `-city <name>` | auto | City to report on, e.g. `-city Osaka` |
 | `-units c\|f\|auto` | `auto` | Temperature units; `auto` follows the city |
-| `-sections <list>` | all | Any of `weather,world,tech,fact` |
+| `-sections <list>` | all | Any of `weather,local,world,tech,fact` |
 | `-limit <n>` | `5` | Headlines per section (1–20) |
 | `-json` | off | Machine-readable output |
 | `-plain` | off | Force plain text |
@@ -78,10 +78,13 @@ Every source is keyless and public.
 | Section | Source |
 |---|---|
 | Weather | [Open-Meteo](https://open-meteo.com) (forecast, geocoding, sunrise/sunset) |
+| Local news | Google News RSS search, Bing News RSS as fallback |
 | World | BBC, NPR, Guardian, Al Jazeera RSS |
 | Tech | [Hacker News](https://news.ycombinator.com) API, [Lobsters](https://lobste.rs) |
-| On this day | Wikimedia REST feed |
+| On this day | Wikimedia REST + Wikidata coordinates |
 | Location | ipinfo.io, then ip-api.com |
+
+Local history is the one section that is sometimes absent: Wikipedia's on-this-day list is global, so a nearby event is only shown when today actually has one. Matching takes both Wikidata coordinates within 50 km and the city's name in the article, so a randomly geolocated entity cannot pose as local news. When nothing local exists the section falls back to the worldwide list, unlabelled.
 
 Responses are cached on disk for 10 minutes. A failing section degrades to a one-line notice; it never kills the briefing.
 

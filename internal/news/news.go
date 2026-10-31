@@ -33,6 +33,7 @@ type rssFeed struct {
 			Title   string `xml:"title"`
 			Link    string `xml:"link"`
 			PubDate string `xml:"pubDate"`
+			Source  string `xml:"source"`
 		} `xml:"item"`
 	} `xml:"channel"`
 }
@@ -223,7 +224,12 @@ func parseRSS(ctx context.Context, url, source string) ([]Item, error) {
 			if t == "" {
 				continue
 			}
-			out = append(out, Item{Title: clean(t), Source: source, URL: strings.TrimSpace(it.Link)})
+			src := source
+			if s := strings.TrimSpace(it.Source); s != "" {
+				src = clean(s)
+			}
+			title := stripSourceSuffix(clean(t), src)
+			out = append(out, Item{Title: title, Source: src, URL: strings.TrimSpace(it.Link)})
 		}
 		return out, nil
 	}
@@ -254,6 +260,21 @@ func clean(s string) string {
 	r := strings.NewReplacer("&amp;", "&", "&quot;", `"`, "&#39;", "'", "&apos;", "'",
 		"&lt;", "<", "&gt;", ">", "&nbsp;", " ", "\n", " ", "\t", " ")
 	return strings.Join(strings.Fields(r.Replace(s)), " ")
+}
+
+// stripSourceSuffix removes the " - Outlet" that search feeds append to every
+// headline, so it is not shown twice alongside the source tag.
+func stripSourceSuffix(title, source string) string {
+	if source == "" {
+		return title
+	}
+	for _, sep := range []string{" - ", " | ", " — "} {
+		suffix := sep + source
+		if strings.HasSuffix(title, suffix) {
+			return strings.TrimSpace(strings.TrimSuffix(title, suffix))
+		}
+	}
+	return title
 }
 
 // interleave round-robins several lists, then truncates to limit.

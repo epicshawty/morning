@@ -22,7 +22,7 @@ func Default() Config {
 	return Config{
 		Units:    "", // auto: follow the reported place
 		Limit:    5,
-		Sections: []string{"weather", "world", "tech", "fact"},
+		Sections: []string{"weather", "local", "world", "tech", "fact"},
 	}
 }
 
