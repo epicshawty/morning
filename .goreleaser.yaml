@@ -181,10 +181,11 @@ changelog:
   sort: asc
   filters:
     exclude:
-      - "^docs:"
-      - "^test:"
-      - "^ci:"
-      - "^chore:"
+      - "^docs(\\(|:)"
+      - "^test(\\(|:)"
+      - "^ci(\\(|:)"
+      - "^chore(\\(|:)"
+      - "^style(\\(|:)"
 
 release:
   draft: false
